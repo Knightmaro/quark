@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网盘资源搜索系统</title>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background-color: #f5f6fa;
+            padding: 20px;
+            cursor: default;
+        }
+
+        /* 搜索框容器样式 */
+        .search-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            display: flex;  /* 添加 flex 布局 */
+            justify-content: center;  /* 水平居中 */
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: 500px;  /* 限制输入框最大宽度 */
+            padding: 12px 20px;
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            transition: all 0.3s ease;
+            cursor: text;
+        }
+
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 卡片容器 */
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: default;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h3 {
+            color: #2d3436;
+            margin-bottom: 8px;
+            font-size: 18px;
+            line-height: 1.4;
+        }
+
+        .card a {
+            display: inline-block;
+            text-decoration: none;
+            color: #0984e3;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .card a:hover {
+            color: #0069d9;
+        }
+
+        /* 添加标题样式 */
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        /* 为标题添加渐变下划线 */
+        .header h1::after {
+            content: '';
+            display: block;
+            width: 150px;
+            height: 4px;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            margin: 15px auto;
+            border-radius: 2px;
+        }
+
+        /* 添加底部声明样式 */
+        .footer {
+            max-width: 800px;
+            margin: 50px auto 20px;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            border-top: 1px solid #eee;
+        }
+
+        .footer p {
+            margin: 10px 0;
+        }
+
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .card .year {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 添加标题部分 -->
+    <div class="header">
+        <h1>网盘资源搜索系统</h1>
+        <p>快速聚合全网资源资源</p>
+    </div>
+
+    <div class="search-container">
+        <input type="text" class="search-input" placeholder="搜索资源..." id="searchInput">
+    </div>
+    <div class="cards-container" id="cardsContainer"></div>
+
+    <footer class="footer">
+        <p>
+            本站所提供的网址和资源均来源于互联网公开渠道，所有链接均指向第三方网盘或网站，本站为非盈利性，不收取费用。
+        </p>
+        <p>
+            如有侵犯您的权益，请发送相关证明文件至
+            <a href="mailto:3187864110@qq.com">3187864110@qq.com</a>
+            及时与我们联系进行屏蔽删除处理！谢谢
+        </p>
+    </footer>
+
+    <script>
+        // 读取并解析txt文件
+        async function loadResources() {
+            try {
+                const response = await fetch('resources.txt');
+                const text = await response.text();
+                
+                return text.split('\n')
+                    .filter(Boolean)
+                    .map(line => {
+                        // 分离名称和链接
+                        const linkMatch = line.match(/https:\/\/pan\.quark\.cn\/s\/[a-zA-Z0-9]+/);
+                        const link = linkMatch ? linkMatch[0] : '';
+                        
+                        // 提取名称（移除链接部分）
+                        let name = line.replace(link, '').trim();
+                        
+                        // 解析年份 - 支持多种格式：(2004) 或 2004 或 .2004.
+                        const yearMatch = name.match(/[\(\s\.](\d{4})[\)\s\.]/);
+                        const year = yearMatch ? yearMatch[1] : '';
+                        
+                        // 清理名称中的额外信息
+                        // 1. 移除年份及其后的所有内容
+                        // 2. 移除特殊字符
+                        name = name
+                            .split(/[\(\.]/, 1)[0]  // 在第一个括号或点号处分割
+                            .replace(/\s+$/, '')     // 移除尾部空格
+                            .replace(/\s{2,}/g, ' '); // 将多个空格替换为单个空格
+
+                        return {
+                            name,
+                            year,
+                            link
+                        };
+                    })
+                    .filter(item => item.link && item.name); // 确保只返回有效条目
+            } catch (error) {
+                console.error('加载资源文件失败:', error);
+                return [];
+            }
+        }
+
+        // 创建资源卡片
+        function createCard(resource) {
+            return `
+                <div class="card">
+                    <h3>${resource.name}</h3>
+                    ${resource.year ? `<div class="year">${resource.year}</div>` : ''}
+                    <a href="${resource.link}" target="_blank">打开网盘链接</a>
+                </div>
+            `;
+        }
+
+        // 渲染卡片
+        function renderCards(resources) {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = resources
+                .map(resource => createCard(resource))
+                .join('');
+        }
+
+        // 搜索功能
+        function setupSearch(resources) {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredResources = resources.filter(resource =>
+                    resource.name.toLowerCase().includes(searchTerm)
+                );
+                renderCards(filteredResources);
+            });
+        }
+
+        // 初始化
+        async function init() {
+            const resources = await loadResources();
+            renderCards(resources);
+            setupSearch(resources);
+        }
+
+        init();
+    </script>
+</body>
+</html>
